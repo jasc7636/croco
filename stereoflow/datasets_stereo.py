@@ -125,16 +125,20 @@ class StereoDataset(data.Dataset):
         assert os.path.isdir(self.root), f"could not find root directory for dataset {self.name}: {self.root}"       
 
     def _load_or_build_cache(self):
-        cache_file = osp.join(cache_dir, self.name+'.pkl')
-        if osp.isfile(cache_file):
-            with open(cache_file, 'rb') as fid:
-                self.pairnames = pickle.load(fid)[self.split]
-        else:
-            tosave = self._build_cache()
-            os.makedirs(cache_dir, exist_ok=True)
-            with open(cache_file, 'wb') as fid:
-                pickle.dump(tosave, fid)
-            self.pairnames = tosave[self.split]
+        # cache_file = osp.join(cache_dir, self.name+'.pkl')
+        # if osp.isfile(cache_file):
+        #     with open(cache_file, 'rb') as fid:
+        #         self.pairnames = pickle.load(fid)[self.split]
+        # else:
+        #     tosave = self._build_cache()
+        #     os.makedirs(cache_dir, exist_ok=True)
+        #     with open(cache_file, 'wb') as fid:
+        #         pickle.dump(tosave, fid)
+        #     self.pairnames = tosave[self.split]
+
+        # Disable cache to save results from both train and test data
+        tosave = self._build_cache()
+        self.pairnames = tosave[self.split]
         
 class CREStereoDataset(StereoDataset):
 
