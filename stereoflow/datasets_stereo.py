@@ -430,9 +430,10 @@ class BoosterDataset(StereoDataset):
 class SpringDataset(StereoDataset):
 
     def __init__(self, split, augmentor=False, crop_size=None, totensor=True, evaluation_split='test'):
-        super().__init__(split=split, augmentor=augmentor, crop_size=crop_size, totensor=totensor)
         assert evaluation_split in ['train', 'test']
         self.evaluation_split = evaluation_split
+
+        super().__init__(split=split, augmentor=augmentor, crop_size=crop_size, totensor=totensor)
 
     def _prepare_data(self):
         self.name = "Spring"
@@ -513,13 +514,14 @@ class Kitti12Dataset(StereoDataset):
 class Kitti15Dataset(StereoDataset):
 
     def __init__(self, split, augmentor=False, crop_size=None, totensor=True, evaluation_split='testing', second_frame=False):
-        super().__init__(split=split, augmentor=augmentor, crop_size=crop_size, totensor=totensor)
         assert evaluation_split in ['training', 'testing']
         self.evaluation_split = evaluation_split
         if second_frame:
             self.img_suffix = '_11.png'
         else:
             self.img_suffix = '_10.png'
+        
+        super().__init__(split=split, augmentor=augmentor, crop_size=crop_size, totensor=totensor)
 
     def _prepare_data(self):
         self.name = "Kitti15"
