@@ -4,6 +4,8 @@
 # --------------------------------------------------------
 # Main test function
 # --------------------------------------------------------
+import sys
+sys.path.append('.')
 
 import os
 import argparse

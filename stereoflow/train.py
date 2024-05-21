@@ -4,6 +4,8 @@
 # --------------------------------------------------------
 # Main training function
 # --------------------------------------------------------
+import sys
+sys.path.append('.')
 
 import argparse
 import datetime
