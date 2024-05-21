@@ -32,8 +32,10 @@ dataset_to_root = {
     'Middlebury2006': './data/stereoflow/middlebury/2006/',
     'Middlebury2005': './data/stereoflow/middlebury/2005/train/',
     'MiddleburyEval3':  './data/stereoflow/middlebury/MiddEval3/',
-    'Spring': './data/stereoflow/spring/', 
-    'Kitti15': './data/stereoflow/kitti-stereo-2015/',
+    #'Spring': './data/stereoflow/spring/', 
+    'Spring': os.getenv("DATASETS_SPRING_ROOT"),
+    #'Kitti15': './data/stereoflow/kitti-stereo-2015/',
+    'Kitti15': os.getenv("DATASETS_KITTI_ROOT"),
     'Kitti12': './data/stereoflow/kitti-stereo-2012/',
 }
 cache_dir = "./data/stereoflow/datasets_stereo_cache/"
@@ -423,6 +425,11 @@ class BoosterDataset(StereoDataset):
         
 class SpringDataset(StereoDataset):
 
+    def __init__(self, split, augmentor=False, crop_size=None, totensor=True, evaluation_split='test'):
+        super().__init__(split=split, augmentor=augmentor, crop_size=crop_size, totensor=totensor)
+        assert evaluation_split in ['train', 'test']
+        self.evaluation_split = evaluation_split
+
     def _prepare_data(self):
         self.name = "Spring"
         self._set_root()
@@ -436,13 +443,13 @@ class SpringDataset(StereoDataset):
     def _build_cache(self):
         trainseqs = sorted(os.listdir( osp.join(self.root,'train')))
         trainpairs = [osp.join('train',s,'frame_left',f[:-4]) for s in trainseqs for f in sorted(os.listdir(osp.join(self.root,'train',s,'frame_left')))]
-        testseqs = sorted(os.listdir( osp.join(self.root,'test')))
-        testpairs = [osp.join('test',s,'frame_left',f[:-4]) for s in testseqs for f in sorted(os.listdir(osp.join(self.root,'test',s,'frame_left')))]
+        testseqs = sorted(os.listdir( osp.join(self.root,self.evaluation_split)))
+        testpairs = [osp.join(self.evaluation_split,s,'frame_left',f[:-4]) for s in testseqs for f in sorted(os.listdir(osp.join(self.root,self.evaluation_split,s,'frame_left')))]
         testpairs += [p.replace('frame_left','frame_right') for p in testpairs]
         """maxnorm = {'0001': 32.88, '0002': 228.5, '0004': 298.2, '0005': 142.5, '0006': 113.6, '0007': 27.3, '0008': 554.5, '0009': 155.6, '0010': 126.1, '0011': 87.6, '0012': 303.2, '0013': 24.14, '0014': 82.56, '0015': 98.44, '0016': 156.9, '0017': 28.17, '0018': 21.03, '0020': 178.0, '0021': 58.06, '0022': 354.2, '0023': 8.79, '0024': 97.06, '0025': 55.16, '0026': 91.9, '0027': 156.6, '0030': 200.4, '0032': 58.66, '0033': 373.5, '0036': 149.4, '0037': 5.625, '0038': 37.0, '0039': 12.2, '0041': 453.5, '0043': 457.0, '0044': 379.5, '0045': 161.8, '0047': 105.44} # => let'use 0041"""
         subtrainpairs = [p for p in trainpairs if p.split('/')[1]!='0041']
         subvalpairs = [p for p in trainpairs if p.split('/')[1]=='0041']
-        assert len(trainpairs)==5000 and len(testpairs)==2000 and len(subtrainpairs)==4904 and len(subvalpairs)==96, "incorrect parsing of pairs in Spring"
+        assert len(trainpairs)==5000 and len(subtrainpairs)==4904 and len(subvalpairs)==96, "incorrect parsing of pairs in Spring"
         tosave = {'train': trainpairs, 'test': testpairs, 'subtrain': subtrainpairs, 'subval': subvalpairs}
         return tosave
         
@@ -501,13 +508,22 @@ class Kitti12Dataset(StereoDataset):
 
 class Kitti15Dataset(StereoDataset):
 
+    def __init__(self, split, augmentor=False, crop_size=None, totensor=True, evaluation_split='testing', second_frame=False):
+        super().__init__(split=split, augmentor=augmentor, crop_size=crop_size, totensor=totensor)
+        assert evaluation_split in ['training', 'testing']
+        self.evaluation_split = evaluation_split
+        if second_frame:
+            self.img_suffix = '_11.png'
+        else:
+            self.img_suffix = '_10.png'
+
     def _prepare_data(self):
         self.name = "Kitti15"
         self._set_root()
         assert self.split in ['train','subtrain','subval','test']
-        self.pairname_to_Limgname = lambda pairname: osp.join(self.root, pairname+'_10.png')
-        self.pairname_to_Rimgname = lambda pairname: osp.join(self.root, pairname.replace('/image_2/','/image_3/')+'_10.png')
-        self.pairname_to_Ldispname = None if self.split=='test' else lambda pairname: osp.join(self.root, pairname.replace('/image_2/','/disp_occ_0/')+'_10.png')
+        self.pairname_to_Limgname = lambda pairname: osp.join(self.root, pairname+self.img_suffix)
+        self.pairname_to_Rimgname = lambda pairname: osp.join(self.root, pairname.replace('/image_2/','/image_3/')+self.img_suffix)
+        self.pairname_to_Ldispname = None if self.split=='test' else lambda pairname: osp.join(self.root, pairname.replace('/image_2/','/disp_occ_0/')+self.img_suffix)
         self.pairname_to_str = lambda pairname: pairname.replace('/image_2/','/')
         self.load_disparity = _read_kitti_disp
         
@@ -515,7 +531,7 @@ class Kitti15Dataset(StereoDataset):
         trainseqs = ["training/image_2/%06d"%(i) for i in range(200)]
         subtrainseqs = trainseqs[:-5]
         subvalseqs = trainseqs[-5:]
-        testseqs = ["testing/image_2/%06d"%(i) for i in range(200)]
+        testseqs = [osp.join(self.evaluation_split, "image_2/%06d"%(i)) for i in range(200)]
         assert len(trainseqs)==200 and len(subtrainseqs)==195 and len(subvalseqs)==5 and len(testseqs)==200, "incorrect parsing of pairs in Kitti15"
         tosave = {'train': trainseqs, 'subtrain': subtrainseqs, 'subval': subvalseqs, 'test': testseqs}
         return tosave 
@@ -523,17 +539,18 @@ class Kitti15Dataset(StereoDataset):
     def submission_save_pairname(self, pairname, prediction, outdir, time):
         assert prediction.ndim==2
         assert prediction.dtype==np.float32
-        outfile = os.path.join(outdir, 'disp_0', pairname.split('/')[-1]+'_10.png')
+        outfile = os.path.join(outdir, 'disp_0', pairname.split('/')[-1]+self.img_suffix)
         os.makedirs( os.path.dirname(outfile), exist_ok=True)
         img = (prediction * 256).astype('uint16')
         Image.fromarray(img).save(outfile)
 
     def finalize_submission(self, outdir):
         assert self.split=='test'
-        cmd = f'cd {outdir}/; zip -r "kitti15_results.zip" disp_0'
+        zip_name = f'croco_kitti15_{self.evaluation_split}{self.img_suffix[:3]}.zip'
+        cmd = f'cd {outdir}/; zip -r "{zip_name}" disp_0'
         print(cmd)
         os.system(cmd)
-        print(f'Done. Submission file at {outdir}/kitti15_results.zip')
+        print(f'Done. Submission file at {outdir}/{zip_name}')
 
 
 ### auxiliary functions
